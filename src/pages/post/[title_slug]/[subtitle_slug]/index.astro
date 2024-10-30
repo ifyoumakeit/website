@@ -1,0 +1,58 @@
+---
+import { postmeta } from "astro:db";
+import { and } from "astro:db";
+import { not } from "astro:db";
+import { eq } from "astro:db";
+import { sql } from "astro:db";
+import { db, post } from "astro:db";
+
+export async function getStaticPaths() {
+  const posts = await db
+    .select()
+    .from(post)
+    .where(and(not(eq(post.title_slug, "")), not(eq(post.subtitle_slug, ""))))
+    .execute();
+
+  return posts.map(({ title_slug, subtitle_slug }) => ({
+    params: { title_slug, subtitle_slug },
+  }));
+}
+
+const { title_slug, subtitle_slug } = Astro.params;
+
+const [postData] = await db
+  .select()
+  .from(post)
+  .where(
+    and(eq(post.title_slug, title_slug), eq(post.subtitle_slug, subtitle_slug))
+  )
+  .limit(1)
+  .execute();
+
+const meta = await db
+  .select()
+  .from(postmeta)
+  .where(sql`${postmeta.post_id} = ${postData.id}`)
+  .execute();
+
+const metaMap = Object.fromEntries(
+  meta.map(({ name, value }) => [name, value])
+);
+
+console.log({ metaMap });
+---
+
+<div>Good dog, {postData.title}!</div>
+
+<div>
+  {metaMap.video}
+  <iframe
+    width="702"
+    height="395"
+    src=`https://www.youtube.com/embed/${metaMap.video_file}`
+    title="Embed videos and playlists"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen></iframe>
+</div>
