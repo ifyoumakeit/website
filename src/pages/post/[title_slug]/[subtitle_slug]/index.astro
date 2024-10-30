@@ -38,8 +38,6 @@ const meta = await db
 const metaMap = Object.fromEntries(
   meta.map(({ name, value }) => [name, value])
 );
-
-console.log({ metaMap });
 ---
 
 <div>Good dog, {postData.title}!</div>
