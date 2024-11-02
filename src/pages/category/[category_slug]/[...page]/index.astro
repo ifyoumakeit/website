@@ -1,0 +1,135 @@
+---
+import type {
+  InferGetStaticParamsType,
+  InferGetStaticPropsType,
+  GetStaticPaths,
+} from "astro";
+import { db, post, category, eq } from "astro:db";
+import Layout from "../../../../layouts/Layout.astro";
+import VideoImage from "../../../../components/VideoImage.astro";
+import { and } from "astro:db";
+
+export const getStaticPaths = (async ({ paginate }) => {
+  const categories = await db
+    .select()
+    .from(category)
+    .where(eq(category.publish, 1))
+    .execute();
+
+  const foo = await Promise.all(
+    categories.map(async ({ slug, id }) => {
+      const posts = await db
+        .select()
+        .from(post)
+        .where(and(eq(post.category_id, id), eq(post.publish, 1)))
+        .orderBy(post.date)
+        .execute();
+      return paginate(posts, {
+        params: { category_slug: slug },
+        pageSize: 12,
+      });
+    })
+  ).then((paths) => paths.flat());
+
+  return foo;
+}) satisfies GetStaticPaths;
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { category_slug } = Astro.params;
+const { page } = Astro.props as Props;
+
+const [categoryData] = await db
+  .select()
+  .from(category)
+  .where(eq(category.slug, category_slug))
+  .limit(1)
+  .execute();
+---
+
+<Layout title=`${categoryData.title}`>
+  <h1>{categoryData.title}</h1>
+
+  <ol class="posts">
+    {
+      page.data.map((post) => (
+        <li class="post">
+          <div class="post-wrapper">
+            <a href={`/post/${post.title_slug}/${post.subtitle_slug}`}>
+              <VideoImage
+                imagePath={`/src/images/video/${post.title_slug}-${post.subtitle_slug}.jpg`}
+                altText={post.title}
+              />
+            </a>
+            <div class="post-meta">
+              <a href={`/post/${post.title_slug}/${post.subtitle_slug}`}>
+                <h2 set:html={post.title} class="title" />
+                <h3 set:html={post.subtitle} class="subtitle" />
+              </a>
+              <time>{new Date(post.date).toLocaleDateString()}</time>
+            </div>
+          </div>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div>
+    {page.url.first ? <a href={page.url.first}>First</a> : null}
+    {page.url.prev ? <a href={page.url.prev}>Previous</a> : null}
+    {page.url.next ? <a href={page.url.next}>Next</a> : null}
+    {page.url.last ? <a href={page.url.last}>Last</a> : null}
+  </div>
+</Layout>
+
+<style>
+  .posts {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .post {
+    padding: 0;
+    margin: 0;
+    width: calc(25% - 12px);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .post-wrapper {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+  }
+  .post-meta {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 0.5rem;
+    background-color: #f0f0f0;
+    background-color: white;
+    height: 100%;
+  }
+  .title,
+  .subtitle {
+    margin: 0;
+  }
+
+  .title {
+    font-size: 1rem;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    font-weight: 400;
+  }
+
+  time {
+    font-size: 0.8rem;
+    color: #666;
+  }
+</style>

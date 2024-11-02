@@ -1,0 +1,46 @@
+---
+import { db, category, sql } from "astro:db";
+import { post, and, eq } from "astro:db";
+
+const categories = await db
+  .select()
+  .from(category)
+  .where(eq(category.publish, 1))
+  .execute();
+---
+
+<nav class="nav">
+  <h1 class="logo">IF YOU MAKE IT</h1>
+  <ol class="navlist">
+    {
+      categories.map(({ title, slug }) => (
+        <li class="navlist-item">
+          <a href={`/category/${slug}`}>{title}</a>
+        </li>
+      ))
+    }
+  </ol>
+</nav>
+
+<style>
+  .logo {
+    font-size: 2rem;
+    color:;
+    margin: 0;
+  }
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .navlist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+  }
+
+  .navlist-item {
+    margin-right: 1rem;
+  }
+</style>

@@ -1,21 +1,26 @@
 ---
 import { postmeta } from "astro:db";
-import { and } from "astro:db";
-import { not } from "astro:db";
-import { eq } from "astro:db";
-import { sql } from "astro:db";
+import { and, not, eq } from "astro:db";
 import { db, post } from "astro:db";
+import Layout from "../../../../layouts/Layout.astro";
 
 export async function getStaticPaths() {
-  const posts = await db
+  return db
     .select()
     .from(post)
-    .where(and(not(eq(post.title_slug, "")), not(eq(post.subtitle_slug, ""))))
-    .execute();
-
-  return posts.map(({ title_slug, subtitle_slug }) => ({
-    params: { title_slug, subtitle_slug },
-  }));
+    .where(
+      and(
+        not(eq(post.title_slug, "")),
+        not(eq(post.subtitle_slug, "")),
+        eq(post.publish, 1)
+      )
+    )
+    .execute()
+    .then((posts) =>
+      posts.map(({ title_slug, subtitle_slug }) => ({
+        params: { title_slug, subtitle_slug },
+      }))
+    );
 }
 
 const { title_slug, subtitle_slug } = Astro.params;
@@ -24,7 +29,11 @@ const [postData] = await db
   .select()
   .from(post)
   .where(
-    and(eq(post.title_slug, title_slug), eq(post.subtitle_slug, subtitle_slug))
+    and(
+      eq(post.title_slug, title_slug),
+      eq(post.subtitle_slug, subtitle_slug),
+      eq(post.publish, 1)
+    )
   )
   .limit(1)
   .execute();
@@ -32,7 +41,7 @@ const [postData] = await db
 const meta = await db
   .select()
   .from(postmeta)
-  .where(sql`${postmeta.post_id} = ${postData.id}`)
+  .where(eq(postmeta.post_id, postData.id))
   .execute();
 
 const metaMap = Object.fromEntries(
@@ -40,17 +49,48 @@ const metaMap = Object.fromEntries(
 );
 ---
 
-<div>Good dog, {postData.title}!</div>
+<Layout title=`${postData.title} - ${postData.subtitle}`>
+  <div class="top">
+    <h1 set:html={postData.title} />
+    <h2 set:html={postData.subtitle} />
+  </div>
 
-<div>
-  {metaMap.video}
-  <iframe
-    width="702"
-    height="395"
-    src=`https://www.youtube.com/embed/${metaMap.video_file}`
-    title="Embed videos and playlists"
-    frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-    referrerpolicy="strict-origin-when-cross-origin"
-    allowfullscreen></iframe>
-</div>
+  <div class="video" style={`aspect-ratio: 16/9;`}>
+    <iframe
+      style={`aspect-ratio: 16/9;`}
+      src=`https://www.youtube.com/embed/${metaMap.video_file}`
+      title="Embed videos and playlists"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen></iframe>
+  </div>
+</Layout>
+
+<style>
+  .video {
+    background-color: black;
+  }
+
+  iframe {
+    width: 100%;
+  }
+  .top {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: black;
+    color: white;
+    padding: 1rem;
+  }
+
+  .top h1 {
+    font-size: 2rem;
+    margin: 0;
+  }
+
+  .top h2 {
+    font-size: 1.5rem;
+    margin: 0;
+  }
+</style>
